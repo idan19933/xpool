@@ -14,34 +14,34 @@ import java.util.PriorityQueue;
  * and classes from {@code java.util}. It does not use any class from
  * {@code java.util.concurrent}.</p>
  */
-public class ThreadsPool {
+public class ThreadPool {
 
     /**
      * Priority queue of pending tasks. Ordered so that the task with
      * the highest priority value is the head of the queue.
      */
-    private final PriorityQueue<Task> pendingTasks;
+    private PriorityQueue<Task> pendingTasks;
 
     /**
      * Lock object guarding access to {@link #pendingTasks} and
-     * {@link #shutdownRequested}. Worker threads wait on this object
+     * {@link #isShutdownRequested}. Worker threads wait on this object
      * when no tasks are available, and the submit method notifies on
      * it after enqueueing a new task.
      */
-    private final Object lock;
+    private Object lock;
 
     /**
      * Worker threads owned by this pool. Kept so the pool can be
      * gracefully shut down if needed.
      */
-    private final Thread[] workers;
+    private Thread[] workers;
 
     /**
      * Flag indicating that the pool has been asked to stop. Once set,
      * worker threads exit after draining themselves out of their wait
      * loop.
      */
-    private boolean shutdownRequested;
+    private boolean isShutdownRequested;
 
     /**
      * Creates a new pool with the specified number of worker threads.
@@ -52,33 +52,75 @@ public class ThreadsPool {
      * @throws IllegalArgumentException if {@code numberOfThreads} is
      *                                  not positive
      */
-    public ThreadsPool(int numberOfThreads) {
+    public ThreadPool(int numberOfThreads) {
         if (numberOfThreads <= 0) {
             throw new IllegalArgumentException(
                     "Number of threads must be positive, was: " + numberOfThreads);
         }
-        this.lock = new Object();
-        this.shutdownRequested = false;
-        this.pendingTasks = new PriorityQueue<Task>(
+        
+        this.setLock(new Object());
+        this.setIsShutdownRequested(false);
+        this.setPendingTasks(new PriorityQueue<Task>(
                 numberOfThreads,
                 new Comparator<Task>() {
                     @Override
                     public int compare(Task first, Task second) {
-                        // Higher priority value comes first, therefore
-                        // we invert the natural ordering of integers.
                         return Integer.compare(
                                 second.getPriority(),
                                 first.getPriority());
                     }
-                });
-        this.workers = new Thread[numberOfThreads];
+                }));
+                
+        this.setWorkers(new Thread[numberOfThreads]);
+        
         for (int index = 0; index < numberOfThreads; index++) {
             Thread worker = new Thread(new WorkerRunnable(),
                     "xpool-worker-" + index);
             worker.setDaemon(true);
-            this.workers[index] = worker;
+            this.getWorkers()[index] = worker;
             worker.start();
         }
+    }
+
+    public void setPendingTasks(PriorityQueue<Task> pendingTasks) {
+        if (pendingTasks == null) {
+            throw new IllegalArgumentException("Pending tasks queue cannot be null.");
+        }
+        this.pendingTasks = pendingTasks;
+    }
+
+    public PriorityQueue<Task> getPendingTasks() {
+        return pendingTasks;
+    }
+
+    public void setLock(Object lock) {
+        if (lock == null) {
+            throw new IllegalArgumentException("Lock object cannot be null.");
+        }
+        this.lock = lock;
+    }
+
+    public Object getLock() {
+        return lock;
+    }
+
+    public void setWorkers(Thread[] workers) {
+        if (workers == null) {
+            throw new IllegalArgumentException("Workers array cannot be null.");
+        }
+        this.workers = workers;
+    }
+
+    public Thread[] getWorkers() {
+        return workers;
+    }
+
+    public void setIsShutdownRequested(boolean isShutdownRequested) {
+        this.isShutdownRequested = isShutdownRequested;
+    }
+
+    public boolean isShutdownRequested() {
+        return isShutdownRequested;
     }
 
     /**
@@ -95,14 +137,14 @@ public class ThreadsPool {
         if (task == null) {
             throw new IllegalArgumentException("Task must not be null.");
         }
-        synchronized (this.lock) {
-            if (this.shutdownRequested) {
+        
+        synchronized (this.getLock()) {
+            if (this.isShutdownRequested()) {
                 throw new IllegalStateException(
                         "Cannot submit a task: the pool has been shut down.");
             }
-            this.pendingTasks.offer(task);
-            // Wake one waiting worker so it can pick up the new task.
-            this.lock.notify();
+            this.getPendingTasks().offer(task);
+            this.getLock().notify();
         }
     }
 
@@ -115,12 +157,18 @@ public class ThreadsPool {
      * {@link IllegalStateException}.
      */
     public void shutdown() {
-        synchronized (this.lock) {
-            this.shutdownRequested = true;
-            // Wake every worker so they can observe the flag and exit
-            // if there is nothing left to do.
-            this.lock.notifyAll();
+        synchronized (this.getLock()) {
+            this.setIsShutdownRequested(true);
+            this.getLock().notifyAll();
         }
+    }
+
+    @Override
+    public String toString() {
+        return "ThreadPool{" +
+                "pendingTasks=" + pendingTasks.size() +
+                ", isShutdownRequested=" + isShutdownRequested +
+                '}';
     }
 
     /**
@@ -137,18 +185,16 @@ public class ThreadsPool {
             while (true) {
                 Task next = takeNextTask();
                 if (next == null) {
-                    // Pool shut down and no tasks remain.
                     return;
                 }
+                
                 try {
                     next.perform();
-                } catch (RuntimeException runtimeFailure) {
-                    // A misbehaving task must not kill the worker.
-                    // Report and continue with the next task.
+                } catch (XpoolException | RuntimeException failure) {
                     System.err.println(
-                            "xpool worker caught a RuntimeException from a task: "
-                                    + runtimeFailure);
-                    runtimeFailure.printStackTrace();
+                            "xpool worker caught an exception from a task: "
+                                    + failure.getMessage());
+                    failure.printStackTrace();
                 }
             }
         }
@@ -164,22 +210,22 @@ public class ThreadsPool {
          *         should stop
          */
         private Task takeNextTask() {
-            synchronized (ThreadsPool.this.lock) {
-                while (ThreadsPool.this.pendingTasks.isEmpty()
-                        && !ThreadsPool.this.shutdownRequested) {
+            synchronized (ThreadPool.this.getLock()) {
+                while (ThreadPool.this.getPendingTasks().isEmpty()
+                        && !ThreadPool.this.isShutdownRequested()) {
                     try {
-                        ThreadsPool.this.lock.wait();
+                        ThreadPool.this.getLock().wait();
                     } catch (InterruptedException interrupted) {
-                        // Preserve the interrupt status and exit.
                         Thread.currentThread().interrupt();
                         return null;
                     }
                 }
-                if (ThreadsPool.this.pendingTasks.isEmpty()) {
-                    // We were woken because of shutdown.
+                
+                if (ThreadPool.this.getPendingTasks().isEmpty()) {
                     return null;
                 }
-                return ThreadsPool.this.pendingTasks.poll();
+                
+                return ThreadPool.this.getPendingTasks().poll();
             }
         }
     }
