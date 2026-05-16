@@ -1,48 +1,63 @@
 package com.lifemichael.samples;
 
 import il.ac.hit.xpool.Task;
-import il.ac.hit.xpool.ThreadsPool;
+import il.ac.hit.xpool.ThreadPool;
 
+/**
+ * A demonstration class for the ThreadPool and Task implementations.
+ * It creates a pool, submits tasks, and waits for them to complete.
+ */
 public class XpoolDemo {
 
+    public static final int THREAD_COUNT = 4;
+    public static final int SHORT_SLEEP_MILLIS = 1000;
+    public static final int LONG_SLEEP_MILLIS = 40000;
+
+    /**
+     * The main entry point for the demo application.
+     * 
+     * @param args command line arguments
+     */
     public static void main(String[] args) {
 
-        ThreadsPool pool = new ThreadsPool(4);
+        ThreadPool pool = new ThreadPool(THREAD_COUNT);
 
-        Task a = new SimpleTask(2, "Hello");
-        Task b = new SimpleTask(7, "Good Morning");
-        Task c = new SimpleTask(2, "Good Afternoon");
-        Task d = new SimpleTask(12, "Good Evening");
+        Task helloTask = new SimpleTask(2, "Hello");
+        Task morningTask = new SimpleTask(7, "Good Morning");
+        Task afternoonTask = new SimpleTask(2, "Good Afternoon");
+        Task eveningTask = new SimpleTask(12, "Good Evening");
 
-        pool.submit(a);
-        pool.submit(b);
-        pool.submit(c);
-        pool.submit(d);
+        // Submit initial tasks
+        pool.submit(helloTask);
+        pool.submit(morningTask);
+        pool.submit(afternoonTask);
+        pool.submit(eveningTask);
 
         try {
-            Thread.sleep(1000);
+            Thread.sleep(SHORT_SLEEP_MILLIS);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
 
-        Task e = new SimpleTask(12, "Good Night");
-        Task f = new SimpleTask(4, "Good Day");
-        Task g = new SimpleTask(1, "Hello Everyone");
-        Task h = new SimpleTask(8, "Good Luck");
-        Task i = new SimpleTask(2, "Bonjourno");
-        Task j = new SimpleTask(8, "Bonjour");
+        Task nightTask = new SimpleTask(12, "Good Night");
+        Task dayTask = new SimpleTask(4, "Good Day");
+        Task everyoneTask = new SimpleTask(1, "Hello Everyone");
+        Task luckTask = new SimpleTask(8, "Good Luck");
+        Task bonjournoTask = new SimpleTask(2, "Bonjourno");
+        Task bonjourTask = new SimpleTask(8, "Bonjour");
 
-        pool.submit(e);
-        pool.submit(f);
-        pool.submit(g);
-        pool.submit(h);
-        pool.submit(i);
-        pool.submit(j);
+        // Submit subsequent tasks
+        pool.submit(nightTask);
+        pool.submit(dayTask);
+        pool.submit(everyoneTask);
+        pool.submit(luckTask);
+        pool.submit(bonjournoTask);
+        pool.submit(bonjourTask);
 
         // Wait long enough for all tasks to finish so the demo prints
         // its output before the JVM exits.
         try {
-            Thread.sleep(40000);
+            Thread.sleep(LONG_SLEEP_MILLIS);
         } catch (InterruptedException ex) {
             throw new RuntimeException(ex);
         }
@@ -50,9 +65,9 @@ public class XpoolDemo {
         /*
         We can expect the following:
         1. after the first four tasks and their output, we can expect the output
-        of the next four tasks (e, j, h, and f) - not necessary in this order!
-        2. after getting the output of tasks e, j, h, and f, we can expect to get
-        the output of tasks g and i - not necessary in this order!
+        of the next four tasks (nightTask, bonjourTask, luckTask, and dayTask) - not necessary in this order!
+        2. after getting the output of tasks nightTask, bonjourTask, luckTask, and dayTask, we can expect to get
+        the output of tasks everyoneTask and bonjournoTask - not necessary in this order!
          */
     }
 }
