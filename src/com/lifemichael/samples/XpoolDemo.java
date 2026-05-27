@@ -1,10 +1,10 @@
 package com.lifemichael.samples;
 
 import il.ac.hit.xpool.Task;
-import il.ac.hit.xpool.ThreadPool;
+import il.ac.hit.xpool.ThreadsPool;
 
 /**
- * A demonstration class for the ThreadPool and Task implementations.
+ * A demonstration class for the ThreadsPool and Task implementations.
  * It creates a pool, submits tasks, and waits for them to complete.
  */
 public class XpoolDemo {
@@ -20,7 +20,7 @@ public class XpoolDemo {
      */
     public static void main(String[] args) {
 
-        ThreadPool pool = new ThreadPool(THREAD_COUNT);
+        ThreadsPool pool = new ThreadsPool(THREAD_COUNT);
 
         Task helloTask = new SimpleTask(2, "Hello");
         Task morningTask = new SimpleTask(7, "Good Morning");

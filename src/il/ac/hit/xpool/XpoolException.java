@@ -4,7 +4,7 @@ package il.ac.hit.xpool;
  * Custom checked exception for the xpool project.
  * Thrown when an error occurs during task execution or pool operations.
  */
-public class XpoolException extends Exception {
+public class XpoolException extends RuntimeException {
 
     /**
      * Constructs a new XpoolException with the specified detail message.

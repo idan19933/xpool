@@ -14,7 +14,7 @@ import java.util.PriorityQueue;
  * and classes from {@code java.util}. It does not use any class from
  * {@code java.util.concurrent}.</p>
  */
-public class ThreadPool {
+public class ThreadsPool {
 
     /**
      * Priority queue of pending tasks. Ordered so that the task with
@@ -52,7 +52,7 @@ public class ThreadPool {
      * @throws IllegalArgumentException if {@code numberOfThreads} is
      *                                  not positive
      */
-    public ThreadPool(int numberOfThreads) {
+    public ThreadsPool(int numberOfThreads) {
         if (numberOfThreads <= 0) {
             throw new IllegalArgumentException(
                     "Number of threads must be positive, was: " + numberOfThreads);
@@ -165,7 +165,7 @@ public class ThreadPool {
 
     @Override
     public String toString() {
-        return "ThreadPool{" +
+        return "ThreadsPool{" +
                 "pendingTasks=" + pendingTasks.size() +
                 ", isShutdownRequested=" + isShutdownRequested +
                 '}';
@@ -190,7 +190,7 @@ public class ThreadPool {
                 
                 try {
                     next.perform();
-                } catch (XpoolException | RuntimeException failure) {
+                } catch (RuntimeException failure) {
                     System.err.println(
                             "xpool worker caught an exception from a task: "
                                     + failure.getMessage());
@@ -210,22 +210,22 @@ public class ThreadPool {
          *         should stop
          */
         private Task takeNextTask() {
-            synchronized (ThreadPool.this.getLock()) {
-                while (ThreadPool.this.getPendingTasks().isEmpty()
-                        && !ThreadPool.this.isShutdownRequested()) {
+            synchronized (ThreadsPool.this.getLock()) {
+                while (ThreadsPool.this.getPendingTasks().isEmpty()
+                        && !ThreadsPool.this.isShutdownRequested()) {
                     try {
-                        ThreadPool.this.getLock().wait();
+                        ThreadsPool.this.getLock().wait();
                     } catch (InterruptedException interrupted) {
                         Thread.currentThread().interrupt();
                         return null;
                     }
                 }
                 
-                if (ThreadPool.this.getPendingTasks().isEmpty()) {
+                if (ThreadsPool.this.getPendingTasks().isEmpty()) {
                     return null;
                 }
                 
-                return ThreadPool.this.getPendingTasks().poll();
+                return ThreadsPool.this.getPendingTasks().poll();
             }
         }
     }
