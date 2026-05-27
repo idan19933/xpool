@@ -14,7 +14,7 @@ public interface Task {
      *
      * @throws XpoolException if an error occurs during task execution
      */
-    public abstract void perform() throws XpoolException;
+    public abstract void perform();
 
     /**
      * Sets the priority level of this task. Higher values indicate
