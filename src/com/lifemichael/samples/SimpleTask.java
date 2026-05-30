@@ -40,7 +40,7 @@ public class SimpleTask implements Task {
      * This will sleep and then print out the message.
      */
     @Override
-    public void perform() throws XpoolException {
+    public void perform() {
         try {
             Thread.sleep(SLEEP_DURATION_MILLIS);
             System.out.println(this.getPriority() + " " + this.getMessage());
